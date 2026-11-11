@@ -1,5 +1,5 @@
 
-name: Build GAME BOOSTER MOBILE LEGEND V3
+name: Build GAME BOOSTER MOBILE LEGEND
 
 on:
   workflow_dispatch:
@@ -7,59 +7,54 @@ on:
     branches:
       - main
 
-permissions:
-  contents: read
-
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Project
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
-
-      - name: Install Android SDK Packages
+      - name: Extract project ZIP
+        id: project
         run: |
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          ZIP_FILE=$(find . -maxdepth 1 -name '*.zip' | head -n 1)
 
-      - name: Check Project Files
-        run: |
-          echo "Checking project structure..."
-          ls -la
-          echo "Checking app folder..."
-          if [ ! -f app/build.gradle ] && [ ! -f app/build.gradle.kts ]; then
-            echo "ERROR: app/build.gradle tidak ditemukan!"
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ZIP project tidak ditemukan!"
             exit 1
           fi
 
-      - name: Fix App Module Settings
-        run: |
-          if ! grep -q 'include.*app' settings.gradle; then
-            echo 'include(":app")' >> settings.gradle
+          mkdir extracted
+          unzip -q "$ZIP_FILE" -d extracted
+
+          APP_GRADLE=$(find extracted -type f \( -path '*/app/build.gradle' -o -path '*/app/build.gradle.kts' \) | head -n 1)
+
+          if [ -z "$APP_GRADLE" ]; then
+            echo "ERROR: app/build.gradle tidak ditemukan dalam ZIP!"
+            echo "Isi ZIP:"
+            find extracted -maxdepth 4 -type f
+            exit 1
           fi
 
-      - name: Give Gradle Permission
-        run: chmod +x gradlew
+          PROJECT_DIR=$(dirname "$(dirname "$APP_GRADLE")")
+          echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
 
-      - name: Check Gradle Tasks
-        run: ./gradlew tasks --all
-
-      - name: Build Android APK
-        run: ./gradlew --no-daemon :app:assembleDebug
+      - name: Build APK
+        run: |
+          cd "${{ steps.project.outputs.dir }}"
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: GAME-BOOSTER-MOBILE-LEGEND-V3
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          name: GAME-BOOSTER-MOBILE-LEGEND-APK
+          path: ${{ steps.project.outputs.dir }}/app/build/outputs/apk/debug/*.apk
           
