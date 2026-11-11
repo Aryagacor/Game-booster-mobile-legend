@@ -7,15 +7,18 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source
+      - name: Checkout Project
         uses: actions/checkout@v4
 
-      - name: Setup JDK 17
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -23,13 +26,35 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools'
 
-      - name: Build APK
+      - name: Install Android SDK Packages
         run: |
-          chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Check Project Files
+        run: |
+          echo "Checking project structure..."
+          ls -la
+          echo "Checking app folder..."
+          if [ ! -f app/build.gradle ] && [ ! -f app/build.gradle.kts ]; then
+            echo "ERROR: app/build.gradle tidak ditemukan!"
+            exit 1
+          fi
+
+      - name: Fix App Module Settings
+        run: |
+          if ! grep -q 'include.*app' settings.gradle; then
+            echo 'include(":app")' >> settings.gradle
+          fi
+
+      - name: Give Gradle Permission
+        run: chmod +x gradlew
+
+      - name: Check Gradle Tasks
+        run: ./gradlew tasks --all
+
+      - name: Build Android APK
+        run: ./gradlew --no-daemon :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
