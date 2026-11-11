@@ -1,10 +1,11 @@
 
-name: Build GAME BOOSTER MOBILE LEGEND V3 APK
+name: Build GAME BOOSTER MOBILE LEGEND V3
 
 on:
   workflow_dispatch:
   push:
-    branches: ["main"]
+    branches:
+      - main
 
 jobs:
   build:
@@ -14,19 +15,18 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
 
-      - name: Install Android platform
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-
-      - name: Build debug APK
+      - name: Build APK
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
@@ -34,6 +34,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: GAME-BOOSTER-MOBILE-LEGEND-v3-debug
+          name: GAME-BOOSTER-MOBILE-LEGEND-V3
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          
